@@ -57,6 +57,7 @@ pub enum Msg {
     // DragOver,
     // DragLeave,
     // Drop,
+    AnimationComplete,
     DoNothing,
 }
 
@@ -83,6 +84,9 @@ pub fn view(_model: &Model) -> impl View<Msg> {
 
 pub fn update(msg: Msg, _model: &mut Model, _orders: &mut impl Orders<Msg>) {
     match msg {
+        Msg::AnimationComplete => {
+            log!("Animation complete callback seed!");
+        }
         Msg::DoNothing => {}
     }
 }
