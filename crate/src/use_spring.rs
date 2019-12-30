@@ -107,7 +107,7 @@ impl std::default::Default for AnimStatus {
 
 pub trait AnimationGroupAccessTrait {
     fn trigger(&self);
-     fn add_prop_spring<T: Into<String>>(
+     fn add_spring<T: Into<String>>(
         &self,
         from: f32,
         to: f32,
@@ -160,7 +160,7 @@ impl AnimationGroupAccessTrait for StateAccess<AnimationGroup> {
         log!("triggered");
     }
 
-     fn add_prop_spring<T: Into<String>>(
+     fn add_spring<T: Into<String>>(
             &self,
             from: f32,
             to: f32,
@@ -178,7 +178,6 @@ impl AnimationGroupAccessTrait for StateAccess<AnimationGroup> {
             let anim_floats = AnimFloats {
                 from, to, ideal_time_secs, undamp
             };
-
 
             let anim_group = self.hard_get();
 
@@ -305,7 +304,7 @@ pub struct AnimFloats{
 }
 
 
-pub fn use_prop_spring<T: Into<String>>(
+pub fn use_spring<T: Into<String>>(
     from: f32,
     to: f32,
     property: T,
@@ -315,6 +314,6 @@ pub fn use_prop_spring<T: Into<String>>(
 ) -> (String ,StateAccess<AnimationGroup>) {
 
     let anim_group_access = use_istate(AnimationGroup::default).1;
-    let interp = anim_group_access.add_prop_spring( from, to, property.into(), units.into(), ideal_time_secs, undamp );
+    let interp = anim_group_access.add_spring( from, to, property.into(), units.into(), ideal_time_secs, undamp );
     (interp, anim_group_access)
 }

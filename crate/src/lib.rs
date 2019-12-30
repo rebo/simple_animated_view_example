@@ -2,8 +2,9 @@
 #![allow(clippy::clippy::missing_const_for_fn)]
 mod generated;
 
-mod simple;
-mod use_spring;
+mod simple2;
+// mod use_spring;
+mod use_spring2;
 // #[macro_use]
 // extern crate shrinkwraprs;
 // #[macro_use]
@@ -79,7 +80,7 @@ impl Default for Msg {
 //   - https://codepoints.net/U+FE0E
 
 pub fn view(_model: &Model) -> impl View<Msg> {
-    topo::call!(simple::view())
+    topo::call!(simple2::view())
 }
 
 pub fn update(msg: Msg, _model: &mut Model, _orders: &mut impl Orders<Msg>) {
