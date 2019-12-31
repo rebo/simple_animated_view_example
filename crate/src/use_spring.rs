@@ -4,8 +4,7 @@ use modulator::ModulatorEnv;
 use once_cell::unsync::Lazy;
 use regex::Regex;
 use seed::{prelude::*, *};
-use std::cell::RefCell;
-use std::rc::Rc;
+use std::{cell::RefCell, rc::Rc};
 use wasm_bindgen::JsCast;
 
 #[derive(PartialEq)]
@@ -13,7 +12,7 @@ enum AMCCommand {
     DoNothing,
     Stop,
 }
-
+//
 impl Default for AMCCommand {
     fn default() -> AMCCommand {
         AMCCommand::DoNothing
@@ -55,7 +54,11 @@ thread_local! {
 }
 
 fn amc_start_raf() {
-    MODULATOR.with(|m| request_animation_frame(m.borrow().raf_closure.borrow().as_ref().unwrap()));
+    MODULATOR.with(|m| {
+        request_animation_frame(
+            m.borrow().raf_closure.borrow().as_ref().unwrap(),
+        )
+    });
 }
 
 fn amc_is_stopped(name: &str) -> bool {
@@ -80,9 +83,7 @@ fn amc_val_for_prop(name: &str) -> f32 {
 
 fn amc_advance(timestep: f64) {
     MODULATOR.with(|m| {
-        m.borrow_mut()
-            .modulator_env
-            .advance((1000.0f64 * timestep) as u64)
+        m.borrow_mut().modulator_env.advance((1000.0f64 * timestep) as u64)
     });
 }
 
@@ -211,17 +212,21 @@ pub enum AnimPropertyStatus {
     Running,
 }
 
-pub fn use_spring<T: Into<String>>(property: T, to: T) -> StateAccess<AnimProperty> {
-    let (mut anim_prop, anim_prop_access) = comp_state::use_istate(|| AnimProperty {
-        name: String::default(),
-        property: property.into(),
-        ideal_time: 0.1,
-        to: to.into(),
-        to_vals: vec![],
-        status: AnimPropertyStatus::Stopped,
-        default_from: None,
-        elem_control_accesses: vec![],
-    });
+pub fn use_spring<T: Into<String>>(
+    property: T,
+    to: T,
+) -> StateAccess<AnimProperty> {
+    let (mut anim_prop, anim_prop_access) =
+        comp_state::use_istate(|| AnimProperty {
+            name: String::default(),
+            property: property.into(),
+            ideal_time: 0.1,
+            to: to.into(),
+            to_vals: vec![],
+            status: AnimPropertyStatus::Stopped,
+            default_from: None,
+            elem_control_accesses: vec![],
+        });
 
     anim_prop.name = format!("{:#?}", anim_prop_access.id);
     anim_prop_access.set(anim_prop);
@@ -267,7 +272,11 @@ impl AnimPropertyAccessTrait for StateAccess<AnimProperty> {
         }
 
         // create a new spring
-        let mut spring = modulator::sources::ScalarSpring::new(anim_prop.ideal_time, 5.5, 1.0);
+        let mut spring = modulator::sources::ScalarSpring::new(
+            anim_prop.ideal_time,
+            5.5,
+            1.0,
+        );
         spring.spring_to(0.0);
 
         // tear down the modulator associated with this property and re-initialise it
@@ -280,7 +289,9 @@ impl AnimPropertyAccessTrait for StateAccess<AnimProperty> {
             }
             // if the raf loop is currently stopped we need to restart it.
             if amc.raf_status == RafStatus::Stopped {
-                request_animation_frame(amc.raf_closure.borrow().as_ref().unwrap());
+                request_animation_frame(
+                    amc.raf_closure.borrow().as_ref().unwrap(),
+                );
                 amc.raf_status = RafStatus::Running;
             }
         });
@@ -359,22 +370,23 @@ fn update_div(elem_control: &mut ElemControl, prop: &AnimProperty) {
         if let Some(from) = elem_control.from_props.get(&prop.property) {
             REGEXP.with(|reg| {
                 let mut idx = 0;
-                let interpolated_prop =
-                    reg.borrow()
-                        .replace_all(from, |captures: &regex::Captures| {
-                            let from = captures
-                                .get(0)
-                                .unwrap()
-                                .as_str()
-                                .to_string()
-                                .parse::<f32>()
-                                .unwrap();
-                            let val = amc_val_for_prop(&prop.name);
-                            let to = prop.to_vals[idx];
-                            let new_prov_val = from * val + to * (1.0 - val);
-                            idx += 1;
-                            format!("{}", new_prov_val)
-                        });
+                let interpolated_prop = reg.borrow().replace_all(
+                    from,
+                    |captures: &regex::Captures| {
+                        let from = captures
+                            .get(0)
+                            .unwrap()
+                            .as_str()
+                            .to_string()
+                            .parse::<f32>()
+                            .unwrap();
+                        let val = amc_val_for_prop(&prop.name);
+                        let to = prop.to_vals[idx];
+                        let new_prov_val = from * val + to * (1.0 - val);
+                        idx += 1;
+                        format!("{}", new_prov_val)
+                    },
+                );
 
                 let _ = html_element
                     .style()

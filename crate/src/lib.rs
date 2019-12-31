@@ -12,14 +12,14 @@ mod use_spring;
 // use comp_state::topo;
 use seed::{prelude::*, *};
 
-// ------ ------
+// ------ -------
 //     Model
 // ------ ------
 #[derive(Default)]
 pub struct Model {}
 
 // ------ ------
-//     Init 
+//     Init
 // ------ ------
 
 // type AppType = seed::App<Msg, Model, Node<Msg>>;
@@ -87,8 +87,8 @@ pub fn update(msg: Msg, _model: &mut Model, _orders: &mut impl Orders<Msg>) {
     match msg {
         Msg::AnimationComplete => {
             log!("Animation complete callback seed!");
-        }
-        Msg::DoNothing => {}
+        },
+        Msg::DoNothing => {},
     }
 }
 
@@ -100,9 +100,7 @@ pub fn update(msg: Msg, _model: &mut Model, _orders: &mut impl Orders<Msg>) {
 pub fn run() {
     log!("Starting app...");
 
-    seed::App::builder(update, view)
-        .after_mount(after_mount)
-        .build_and_start();
+    seed::App::builder(update, view).after_mount(after_mount).build_and_start();
 
     log!("App started.");
 }

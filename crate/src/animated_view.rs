@@ -20,10 +20,16 @@ pub fn view() -> Node<Msg> {
             "Click me",
             on_click(move |_| {
                 margin_left
-                    .set_property(format!("{}px", js_sys::Math::random() * 500.0))
+                    .set_property(format!(
+                        "{}px",
+                        js_sys::Math::random() * 500.0
+                    ))
                     .start();
                 margin_top
-                    .set_property(format!("{}px ", js_sys::Math::random() * 500.0))
+                    .set_property(format!(
+                        "{}px ",
+                        js_sys::Math::random() * 500.0
+                    ))
                     .start();
                 color
                     .set_property(format!(
