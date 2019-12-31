@@ -300,7 +300,7 @@ impl AnimPropertyAccessTrait for StateAccess<AnimProperty> {
 pub fn animated_id<T: Into<String>>(
     div_id: T,
     properties: &[StateAccess<AnimProperty>],
-) -> seed::dom_types::Attrs {
+) -> seed::Attrs {
     let (div, elem_control_access) = use_istate(|| ElemControl::new(div_id));
 
     do_once(|| {
