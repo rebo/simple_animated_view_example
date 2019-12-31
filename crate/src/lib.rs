@@ -43,7 +43,7 @@ fn after_mount(_: Url, orders: &mut impl Orders<Msg>) -> AfterMount<Model> {
 // ------ ------
 //    Routes
 // ------ ------
-
+#[must_use]
 pub fn routes(_url: Url) -> Option<Msg> {
     None
 }
@@ -63,6 +63,7 @@ pub enum Msg {
 }
 
 impl Default for Msg {
+    #[must_use]
     fn default() -> Self {
         Self::DoNothing
     }
@@ -79,6 +80,7 @@ impl Default for Msg {
 // - "▶\u{fe0e}" - \u{fe0e} is the variation selector, it prevents ▶ to change to emoji in some browsers
 //   - https://codepoints.net/U+FE0E
 
+#[must_use]
 pub fn view(_model: &Model) -> impl View<Msg> {
     comp_state::topo::call!(animated_view::view())
 }

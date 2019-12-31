@@ -1,3 +1,5 @@
+#![allow(clippy::cast_possible_truncation)]
+#![allow(clippy::cast_sign_loss)]
 use comp_state::{do_once, use_istate, StateAccess};
 use enclose::enclose as e;
 use modulator::ModulatorEnv;
@@ -14,8 +16,8 @@ enum AMCCommand {
 }
 //
 impl Default for AMCCommand {
-    fn default() -> AMCCommand {
-        AMCCommand::DoNothing
+    fn default() -> Self {
+        Self::DoNothing
     }
 }
 
@@ -26,8 +28,8 @@ enum RafStatus {
 }
 
 impl Default for RafStatus {
-    fn default() -> RafStatus {
-        RafStatus::Stopped
+    fn default() -> Self {
+        Self::Stopped
     }
 }
 
@@ -41,7 +43,7 @@ struct AnimationMasterControl {
 }
 
 impl AnimationMasterControl {
-    pub fn stop(&mut self) {
+    pub fn _stop(&mut self) {
         self.command = AMCCommand::Stop
     }
 }
@@ -138,7 +140,7 @@ thread_local! {
             // itrate over props and divs inside props
             for (prop,prop_access) in amc_properties().iter().map(|p| (p.hard_get(), p)) {
                 for (mut elem_control, elem_control_access) in prop.elem_control_accesses.iter().map(|d| (d.hard_get(),d)){
-                    find_and_update_html_element(&mut elem_control, &elem_control_access);
+                    find_and_update_html_element(&mut elem_control, elem_control_access);
                     // if that element does exist:
                     update_div(&mut elem_control, &prop);
                     elem_control_access.set(elem_control);
@@ -186,8 +188,8 @@ pub struct ElemControl {
 }
 
 impl ElemControl {
-    pub fn new<T: Into<String>>(div_id: T) -> ElemControl {
-        let mut dc = ElemControl::default();
+    pub fn new<T: Into<String>>(div_id: T) -> Self {
+        let mut dc = Self::default();
         dc.div_id = div_id.into();
         dc
     }
@@ -265,7 +267,7 @@ impl AnimPropertyAccessTrait for StateAccess<AnimProperty> {
         let anim_prop = self.hard_get();
 
         // we need to clear all existing "froms" and start the animation again from a new from value.
-        for elem_control_access in anim_prop.elem_control_accesses.iter() {
+        for elem_control_access in &anim_prop.elem_control_accesses {
             elem_control_access.update(|elem_control| {
                 elem_control.from_props.remove(&anim_prop.property);
             });
@@ -332,7 +334,7 @@ fn find_and_update_html_element(
     if elem_control.html_element.is_none() {
         if let Some(Ok(html_element)) = document()
             .get_element_by_id(&elem_control.div_id)
-            .map(|e| e.dyn_into::<web_sys::HtmlElement>())
+            .map(wasm_bindgen::JsCast::dyn_into::<web_sys::HtmlElement>)
         {
             elem_control.html_element = Some(html_element);
             elem_control_access.set(elem_control.clone());
@@ -382,7 +384,7 @@ fn update_div(elem_control: &mut ElemControl, prop: &AnimProperty) {
                             .unwrap();
                         let val = amc_val_for_prop(&prop.name);
                         let to = prop.to_vals[idx];
-                        let new_prov_val = from * val + to * (1.0 - val);
+                        let new_prov_val = to.mul_add(1.0 - val, from * val);
                         idx += 1;
                         format!("{}", new_prov_val)
                     },
