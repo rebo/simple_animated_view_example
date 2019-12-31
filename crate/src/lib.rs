@@ -2,14 +2,14 @@
 #![allow(clippy::clippy::missing_const_for_fn)]
 mod generated;
 
-mod simple2;
+mod animated_view;
 // mod use_spring;
-mod use_spring2;
+mod use_spring;
 // #[macro_use]
 // extern crate shrinkwraprs;
 // #[macro_use]
 // extern crate derive_more;
-use comp_state::topo;
+// use comp_state::topo;
 use seed::{prelude::*, *};
 
 // ------ ------
@@ -19,7 +19,7 @@ use seed::{prelude::*, *};
 pub struct Model {}
 
 // ------ ------
-//     Init
+//     Init 
 // ------ ------
 
 // type AppType = seed::App<Msg, Model, Node<Msg>>;
@@ -80,7 +80,7 @@ impl Default for Msg {
 //   - https://codepoints.net/U+FE0E
 
 pub fn view(_model: &Model) -> impl View<Msg> {
-    topo::call!(simple2::view())
+    comp_state::topo::call!(animated_view::view())
 }
 
 pub fn update(msg: Msg, _model: &mut Model, _orders: &mut impl Orders<Msg>) {
