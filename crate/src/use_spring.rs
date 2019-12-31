@@ -83,7 +83,7 @@ fn amc_val_for_prop(name: &str) -> f32 {
 
 fn amc_advance(timestep: f64) {
     MODULATOR.with(|m| {
-        m.borrow_mut().modulator_env.advance((1000.0f64 * timestep) as u64)
+        m.borrow_mut().modulator_env.advance((1000.0_f64 * timestep) as u64)
     });
 }
 
