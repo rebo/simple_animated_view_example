@@ -1,5 +1,7 @@
 #![allow(clippy::cast_possible_truncation)]
 #![allow(clippy::cast_sign_loss)]
+#![allow(clippy::redundant_closure_for_method_calls)]
+
 use comp_state::{do_once, use_istate, StateAccess};
 use enclose::enclose as e;
 use modulator::ModulatorEnv;
@@ -102,7 +104,8 @@ thread_local! {
 
         let mut delta = 0.0;
         *g.borrow_mut() = Some(Closure::wrap(Box::new(move |timestamp| {
-            // log!("1st Log");
+
+            //  log!("1st Log");
             // Need to return without calling RAF again if requested to stop or no properties left.
             if MODULATOR.with(|m| m.borrow().command == AMCCommand::Stop || m.borrow().properties.is_empty()) {
                     possible_last_frame_timestamp = None;
@@ -184,7 +187,14 @@ pub struct ElemControl {
     pub div_id: String,
     pub html_element: Option<web_sys::HtmlElement>,
     pub should_stop: bool,
-    pub from_props: HashMap<String, String>,
+    pub from_props: HashMap<String, FromProp>,
+}
+
+#[derive(Clone)]
+pub struct FromProp {
+    prop: String,
+    vals: Vec<f32>,
+    template: Vec<String>,
 }
 
 impl ElemControl {
@@ -201,7 +211,10 @@ pub struct AnimProperty {
     pub property: String,
     pub to: String,
     pub to_vals: Vec<f32>,
+    pub to_template: Vec<String>,
     pub ideal_time: f32,
+    pub map_func: RcRefCellFnBox,
+    pub latest_prop_val: Option<String>,
     pub default_from: Option<String>,
     pub status: AnimPropertyStatus,
     pub elem_control_accesses: Vec<StateAccess<ElemControl>>,
@@ -218,17 +231,25 @@ pub fn use_spring<T: Into<String>>(
     property: T,
     to: T,
 ) -> StateAccess<AnimProperty> {
-    let (mut anim_prop, anim_prop_access) =
-        comp_state::use_istate(|| AnimProperty {
+    let to = to.into();
+    let (mut anim_prop, anim_prop_access) = comp_state::use_istate(e!((to)
+        || AnimProperty {
             name: String::default(),
             property: property.into(),
             ideal_time: 0.1,
-            to: to.into(),
+            to,
+            latest_prop_val: None,
+            map_func: Rc::new(RefCell::new(None)),
             to_vals: vec![],
+            to_template: vec![],
             status: AnimPropertyStatus::Stopped,
             default_from: None,
             elem_control_accesses: vec![],
-        });
+        }));
+
+    if anim_prop.to != to {
+        anim_prop.to = to
+    }
 
     anim_prop.name = format!("{:#?}", anim_prop_access.id);
     anim_prop_access.set(anim_prop);
@@ -241,12 +262,51 @@ pub trait AnimPropertyAccessTrait {
     fn start(&self);
     fn preignite(&self) -> Self;
     fn ideal_time(&self, time: f32) -> Self;
+    fn latest_prop_val(&self) -> Option<String>;
+    fn map<F: Fn(f32) -> f32 + 'static>(
+        &self,
+        map_func: F,
+    ) -> StateAccess<AnimProperty>;
 }
 
+type RcRefCellFnBox = Rc<RefCell<Option<Box<(dyn Fn(f32) -> f32 + 'static)>>>>;
+
 impl AnimPropertyAccessTrait for StateAccess<AnimProperty> {
+    fn map<F: Fn(f32) -> f32 + 'static>(
+        &self,
+        map_func: F,
+    ) -> StateAccess<AnimProperty> {
+        let existing_prop = self.hard_get();
+
+        let (mut anim_prop, anim_prop_access) =
+            comp_state::use_istate(|| AnimProperty {
+                name: String::default(),
+                property: existing_prop.name.clone(),
+                ideal_time: 0.1,
+                to: existing_prop.to.clone(),
+                latest_prop_val: None,
+                to_vals: vec![],
+                to_template: vec![],
+                map_func: Rc::new(RefCell::new(Some(
+                    Box::new(map_func) as Box<dyn Fn(f32) -> f32>
+                ))),
+                status: AnimPropertyStatus::Stopped,
+                default_from: None,
+                elem_control_accesses: vec![],
+            });
+
+        anim_prop.name = format!("{:#?}", anim_prop_access.id);
+        anim_prop_access.set(anim_prop);
+        anim_prop_access
+    }
+
     fn default_from<T: Into<String>>(&self, from: T) -> Self {
         self.update(|anim| anim.default_from = Some(from.into()));
         self.clone()
+    }
+
+    fn latest_prop_val(&self) -> Option<String> {
+        self.hard_get().latest_prop_val
     }
 
     fn ideal_time(&self, time: f32) -> Self {
@@ -265,7 +325,6 @@ impl AnimPropertyAccessTrait for StateAccess<AnimProperty> {
 
     fn start(&self) {
         let anim_prop = self.hard_get();
-
         // we need to clear all existing "froms" and start the animation again from a new from value.
         for elem_control_access in &anim_prop.elem_control_accesses {
             elem_control_access.update(|elem_control| {
@@ -304,6 +363,12 @@ impl AnimPropertyAccessTrait for StateAccess<AnimProperty> {
                     .captures_iter(&anim_prop.to)
                     .map(|c| c[0].to_string().parse::<f32>().unwrap())
                     .collect::<Vec<f32>>()
+            });
+            anim_prop.to_template = REGEXP.with(|reg| {
+                reg.borrow()
+                    .split(&anim_prop.to)
+                    .map(|s| s.to_string())
+                    .collect::<Vec<String>>()
             });
             anim_prop.status = AnimPropertyStatus::Running
         });
@@ -346,54 +411,72 @@ fn update_div(elem_control: &mut ElemControl, prop: &AnimProperty) {
     if let Some(html_element) = &elem_control.html_element {
         // ensure element control has currently  a set from property.
         if elem_control.from_props.get(&prop.property).is_none() {
-            if let Ok(existing_from) = window()
-                .get_computed_style(html_element)
-                .unwrap()
-                .unwrap()
-                .get_property_value(&prop.property)
+            if let Ok(existing_from) =
+                html_element.style().get_property_value(&prop.property)
             {
                 if !existing_from.is_empty() {
+                    let template = REGEXP.with(|reg| {
+                        reg.borrow()
+                            .split(&existing_from)
+                            .map(|s| s.to_string())
+                            .collect::<Vec<String>>()
+                    });
+                    let vals = REGEXP.with(|reg| {
+                        reg.borrow()
+                            .captures_iter(&existing_from)
+                            .map(|c| c[0].parse::<f32>().unwrap())
+                            .collect::<Vec<f32>>()
+                    });
+                    let from_prop = FromProp {
+                        prop: existing_from,
+                        vals,
+                        template,
+                    };
+
                     elem_control
                         .from_props
-                        .insert(prop.property.clone(), existing_from);
-                } else if let Some(default_from) = &prop.default_from {
-                    elem_control
-                        .from_props
-                        .insert(prop.property.clone(), default_from.clone());
+                        .insert(prop.property.clone(), from_prop);
                 }
-            } else if let Some(default_from) = &prop.default_from {
-                elem_control
-                    .from_props
-                    .insert(prop.property.clone(), default_from.clone());
             }
         }
 
         // if there is a from property, then animate it.
-        if let Some(from) = elem_control.from_props.get(&prop.property) {
-            REGEXP.with(|reg| {
-                let mut idx = 0;
-                let interpolated_prop = reg.borrow().replace_all(
-                    from,
-                    |captures: &regex::Captures| {
-                        let from = captures
-                            .get(0)
-                            .unwrap()
-                            .as_str()
-                            .to_string()
-                            .parse::<f32>()
-                            .unwrap();
-                        let val = amc_val_for_prop(&prop.name);
-                        let to = prop.to_vals[idx];
-                        let new_prov_val = to.mul_add(1.0 - val, from * val);
-                        idx += 1;
-                        format!("{}", new_prov_val)
-                    },
-                );
-
-                let _ = html_element
-                    .style()
-                    .set_property(&prop.property, &interpolated_prop);
-            });
+        if let Some(interpolated_prop) = new_prop_for_elem(elem_control, prop) {
+            // log!(interpolated_prop);
+            let _ = html_element
+                .style()
+                .set_property(&prop.property, &interpolated_prop);
         }
     }
+}
+
+fn new_prop_for_elem(
+    elem_control: &ElemControl,
+    prop: &AnimProperty,
+) -> Option<String> {
+    let from_prop = &elem_control.from_props.get(&prop.property)?;
+    let val = amc_val_for_prop(&prop.name);
+    let interpolated_vals = from_prop
+        .vals
+        .iter()
+        .zip(prop.to_vals.iter())
+        .map(|(from, to)| to.mul_add(1.0 - val, from * val))
+        .collect::<Vec<f32>>();
+
+    let mut idx = 0;
+
+    Some(
+        REGEXP
+            .with(|reg| {
+                reg.borrow().replace_all(&prop.to, |_: &regex::Captures| {
+                    idx += 1;
+                    if let Some(val) = interpolated_vals.get(idx - 1) {
+                        val.to_string()
+                    } else {
+                        " ".to_string()
+                    }
+                })
+            })
+            .to_string(),
+    )
 }
