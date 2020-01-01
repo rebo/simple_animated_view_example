@@ -236,7 +236,7 @@ pub fn use_spring<T: Into<String>>(
         || AnimProperty {
             name: String::default(),
             property: property.into(),
-            ideal_time: 0.1,
+            ideal_time: 0.2,
             to,
             latest_prop_val: None,
             map_func: Rc::new(RefCell::new(None)),

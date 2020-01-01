@@ -32,7 +32,7 @@ pub fn view() -> Node<Msg> {
         if flipped {
             180.0
         } else {
-            0.0
+            360.0
         }
     );
     let transform_string_opposite = format!(
@@ -57,7 +57,7 @@ pub fn view() -> Node<Msg> {
             C.w_screen
         ],
         div![
-            class![C.flex, C.relative, C.w_265px, C.h_160px,],
+            class![C.flex, C.relative, C.h_50vh, C.w_70vw,],
             div![
                 class![
                     C.absolute,
@@ -66,8 +66,8 @@ pub fn view() -> Node<Msg> {
                     C.justify_start,
                     C.left_0,
                     C.top_0,
-                    C.w_265px,
-                    C.h_160px,
+                    C.h_50vh,
+                    C.w_70vw,
                     C.bg_gray_3,
                     C.shadow_lg,
                     C.rounded,
@@ -80,15 +80,15 @@ pub fn view() -> Node<Msg> {
                         C.left_0,
                         C.top_0,
                         C.object_cover,
-                        C.w_265px,
-                        C.h_160px,
+                        C.h_50vh,
+                        C.w_70vw,
                     ],
                     attrs![At::Src=>"static/images/front.jpg"]
                 ],
                 div![
                     class![
                         C.opacity_50,
-                        C.w_265px,
+                        C.w_70vw,
                         C.pl_1,
                         C.pr_1,
                         C.bg_black,
@@ -110,8 +110,8 @@ pub fn view() -> Node<Msg> {
                     C.absolute,
                     C.left_0,
                     C.top_0,
-                    C.w_265px,
-                    C.h_160px,
+                    C.h_50vh,
+                    C.w_70vw,
                     C.bg_gray_3,
                     C.shadow_lg,
                     C.rounded,
@@ -124,15 +124,15 @@ pub fn view() -> Node<Msg> {
                         C.left_0,
                         C.top_0,
                         C.object_cover,
-                        C.w_265px,
-                        C.h_160px,
+                        C.h_50vh,
+                        C.w_70vw,
                     ],
                     attrs![At::Src=>"static/images/back.jpg"]
                 ],
                 div![
                     class![
                         C.opacity_50,
-                        C.w_265px,
+                        C.w_70vw,
                         C.pl_1,
                         C.pr_1,
                         C.bg_black,

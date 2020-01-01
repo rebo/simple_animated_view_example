@@ -173,6 +173,7 @@ module.exports = {
         '2560px': '2560px',
         '50vh': '50vh',
         '50vw': '50vw',
+        '70vw': '70vw',
       },
       maxWidth: {
         'none': 'none',
@@ -209,6 +210,7 @@ module.exports = {
         '2360px': '2360px',
         '2560px': '2560px',
         '3670px': '3670px',
+        '50vh': '50vh',
       },
       borderRadius: {
         '28px': '28px',
