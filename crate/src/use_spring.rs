@@ -81,8 +81,16 @@ fn amc_is_stopped(name: &str) -> bool {
     })
 }
 
-fn amc_val_for_prop(name: &str) -> f32 {
-    MODULATOR.with(|m| m.borrow().modulator_env.value(name.as_ref()))
+fn amc_contains(name: &str) -> bool {
+    MODULATOR.with(|m| m.borrow().modulator_env.get(name).is_some())
+}
+
+fn amc_val_for_prop(name: &str) -> Option<f32> {
+    if amc_contains(name) {
+        Some(MODULATOR.with(|m| m.borrow().modulator_env.value(name.as_ref())))
+    } else {
+        None
+    }
 }
 
 fn amc_advance(timestep: f64) {
@@ -145,7 +153,8 @@ thread_local! {
                 for (mut elem_control, elem_control_access) in prop.elem_control_accesses.iter().map(|d| (d.hard_get(),d)){
                     find_and_update_html_element(&mut elem_control, elem_control_access);
                     // if that element does exist:
-                    update_div(&mut elem_control, &prop);
+
+                    update_div(&mut elem_control, &prop, prop_access.clone());
                     elem_control_access.set(elem_control);
                 }
 
@@ -377,19 +386,30 @@ impl AnimPropertyAccessTrait for StateAccess<AnimProperty> {
 
 pub fn animated_id<T: Into<String>>(
     div_id: T,
-    properties: &[StateAccess<AnimProperty>],
-) -> seed::Attrs {
+    properties: &[(StateAccess<AnimProperty>, &str)],
+) -> (seed::Attrs, seed::Style) {
     let (div, elem_control_access) = use_istate(|| ElemControl::new(div_id));
 
     do_once(|| {
-        for prop_access in properties.iter() {
+        for prop_access in properties.iter().map(|p| &p.0) {
             prop_access.update(e!((elem_control_access) | prop | {
                 prop.elem_control_accesses.push(elem_control_access)
             }));
         }
     });
+    let mut style = seed::Style::empty();
+    for (prop_access, default) in properties.iter() {
+        let prop = prop_access.hard_get();
 
-    id!(div.div_id)
+        if let Some(new_prop) = prop.latest_prop_val {
+            style.add(prop.property, new_prop)
+        } else {
+            style.add(prop.property, default)
+        }
+    }
+
+    // log!(style);
+    (id!(div.div_id), style)
 }
 
 fn find_and_update_html_element(
@@ -407,7 +427,11 @@ fn find_and_update_html_element(
     }
 }
 
-fn update_div(elem_control: &mut ElemControl, prop: &AnimProperty) {
+fn update_div(
+    elem_control: &mut ElemControl,
+    prop: &AnimProperty,
+    prop_access: StateAccess<AnimProperty>,
+) {
     if let Some(html_element) = &elem_control.html_element {
         // ensure element control has currently  a set from property.
         if elem_control.from_props.get(&prop.property).is_none() {
@@ -443,6 +467,10 @@ fn update_div(elem_control: &mut ElemControl, prop: &AnimProperty) {
         // if there is a from property, then animate it.
         if let Some(interpolated_prop) = new_prop_for_elem(elem_control, prop) {
             // log!(interpolated_prop);
+            //  prop.latest_prop_val = Some(interpolated_prop.clone());
+            prop_access.update(|p| {
+                p.latest_prop_val = Some(interpolated_prop.clone())
+            });
             let _ = html_element
                 .style()
                 .set_property(&prop.property, &interpolated_prop);
@@ -455,7 +483,8 @@ fn new_prop_for_elem(
     prop: &AnimProperty,
 ) -> Option<String> {
     let from_prop = &elem_control.from_props.get(&prop.property)?;
-    let val = amc_val_for_prop(&prop.name);
+    let val = amc_val_for_prop(&prop.name)?;
+
     let interpolated_vals = from_prop
         .vals
         .iter()
@@ -479,4 +508,16 @@ fn new_prop_for_elem(
             })
             .to_string(),
     )
+}
+
+use seed::virtual_dom::UpdateEl;
+pub trait UpdateElLocal<T> {
+    fn update(self, el: &mut T);
+}
+
+impl<Ms> UpdateElLocal<El<Ms>> for (seed::Attrs, seed::Style) {
+    fn update(self, el: &mut El<Ms>) {
+        self.0.update(el);
+        self.1.update(el);
+    }
 }

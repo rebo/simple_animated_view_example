@@ -2,7 +2,9 @@
 use super::Msg;
 use crate::{
     generated::css_classes::C,
-    use_spring::{animated_id, use_spring, AnimPropertyAccessTrait},
+    use_spring::{
+        animated_id, use_spring, AnimPropertyAccessTrait, UpdateElLocal,
+    },
 };
 use comp_state::use_istate;
 use seed::{prelude::*, *};
@@ -10,44 +12,39 @@ use seed_comp_helpers::on_click;
 
 pub fn view() -> Node<Msg> {
     let (flipped, flipped_access) = use_istate(|| false);
-    let opacity = use_spring(
-        "opacity",
-        if flipped {
-            "0.0"
-        } else {
-            "1.0"
-        },
-    );
-    let opacity_opposite = use_spring(
-        "opacity",
-        if flipped {
-            "1.0"
-        } else {
-            "0.0"
-        },
-    );
 
-    let transform_string = format!(
-        "perspective(600px) rotateX({}deg)",
-        if flipped {
-            180.0
-        } else {
-            360.0
-        }
-    );
-    let transform_string_opposite = format!(
-        "perspective(600px) rotateX({}deg)",
-        if flipped {
-            0.0
-        } else {
-            180.0
-        }
-    );
+    let opacity_val = if flipped {
+        "0.0"
+    } else {
+        "1.0"
+    };
+    let opacity_val_opp = if flipped {
+        "1.0"
+    } else {
+        "0.0"
+    };
+    let opacity = use_spring("opacity", opacity_val);
+    let opacity_opposite = use_spring("opacity", opacity_val_opp);
+
+    let transform_val = if flipped {
+        "180.0"
+    } else {
+        "360.0"
+    };
+    let transform_val_opp = if flipped {
+        "0.0"
+    } else {
+        "180.0"
+    };
+
+    let transform_string =
+        format!("perspective(600px) rotateX({}deg)", transform_val);
+    let transform_string_opp =
+        format!("perspective(600px) rotateX({}deg)", transform_val_opp);
+
     let transform = use_spring("transform", &transform_string);
-    let transform_opposite =
-        use_spring("transform", &transform_string_opposite);
+    let transform_opposite = use_spring("transform", &transform_string_opp);
     // let opacity_opposite = opacity.map(|v| 1.0 - v);
-
     div![
         class![
             C.flex,
@@ -73,7 +70,7 @@ pub fn view() -> Node<Msg> {
                     C.rounded,
                     C.overflow_hidden,
                 ],
-                style![St::Opacity => 0.0, St::Transform => "perspective(600px) rotateX(180deg)"  ],
+                // style![St::Opacity => 0.0, St::Transform => "perspective(600px) rotateX(180deg)"  ],
                 img![
                     class![
                         C.absolute,
@@ -100,7 +97,16 @@ pub fn view() -> Node<Msg> {
                     ],
                     "Seed Rocks!"
                 ],
-                animated_id("front", &[opacity.clone(), transform.clone(),])
+                animated_id(
+                    "front",
+                    &[
+                        (opacity.clone(), "0.0"),
+                        (
+                            transform.clone(),
+                            "perspective(600px) rotateX(180deg)"
+                        )
+                    ]
+                )
             ],
             div![
                 class![
@@ -117,7 +123,7 @@ pub fn view() -> Node<Msg> {
                     C.rounded,
                     C.overflow_hidden,
                 ],
-                style![St::Opacity => 1.0, St::Transform => "perspective(600px) rotateX(0deg)"  ],
+                // style![St::Opacity => 1.0, St::Transform => "perspective(600px) rotateX(0deg)"  ],
                 img![
                     class![
                         C.absolute,
@@ -146,7 +152,13 @@ pub fn view() -> Node<Msg> {
                 ],
                 animated_id(
                     "back",
-                    &[opacity_opposite.clone(), transform_opposite.clone()]
+                    &[
+                        (opacity_opposite.clone(), "1.0"),
+                        (
+                            transform_opposite.clone(),
+                            "perspective(600px) rotateX(0deg)"
+                        )
+                    ]
                 )
             ],
             on_click(move |_| {
